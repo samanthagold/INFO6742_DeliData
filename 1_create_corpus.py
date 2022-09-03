@@ -3,9 +3,6 @@
   # - we want to use all raw files from delidata (not just the Mturk files
   #   or just the pilot files)
 
-# Allows me to use Python in RStduio
-reticulate::repl_python()
-
 # Packages 
 import convokit 
 from convokit import Corpus, download 
