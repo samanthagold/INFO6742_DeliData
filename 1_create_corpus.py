@@ -38,11 +38,6 @@ delidata_all['message_id'].nunique()       #36,937
 delidata_annotated['message_id'].nunique() #1,696: annotated is subset of all raw data
 
 
-# Need to merge pd.delidata_annotated and pd.deildata_all together to get all data together
-# delidata = pd.merge(delidata_all[['message_id', 'user_name', 'user_id', 'timestamp']], delidata_annotated, 
-#                     how = 'inner', 
-#                     left_on = ['message_id', 'user_name'], 
-#                     right_on = ['message_id', 'origin'])
                     
 # Additional cleaning steps I think we need to do before we can convert to corpus
 ## Step 1: message in delidata_all['content'] column needs to be extracted in delidata_all
