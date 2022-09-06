@@ -69,6 +69,13 @@ delidata_messages.rename(columns={'lagged_message_id':'reply_to'}, inplace = Tru
 #   (2) Conversation and speaker data only contain IDs
 
 
+##############Creating final answer column for meta data 
+delidata_user = delidata_all[delidata_all['message_type'] == "WASON_SUBMIT"]
 
+def parse_meta(val):
+  val = eval(val)
+  return ''.join([x['value'] for x in val if x['checked']])
 
-  
+delidata_user['meta.finalanswer']=delidata_user['content'].apply(parse_meta)
+delidata_user = delidata_user.sort_values(['timestamp'], ascending = True).groupby(['convo_id', 'user_id']).tail(1)
+user_df = delidata_user[['user_id', 'meta.finalanswer']]
