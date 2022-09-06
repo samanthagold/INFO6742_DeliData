@@ -9,9 +9,15 @@ from convokit import Corpus, download
 import nltk
 import os
 import pandas as pd
+from datetime import datetime
 
 # Setup 
 dir = "Downloads/delidata/"
+
+# Helpers
+def lag(df, column): 
+  df[f'lagged_{column}'] = df[column].shift(1)
+  return(df)
 
 ############### Data Prep 
 # Open all raw DeliData files
@@ -45,7 +51,15 @@ delidata_annotated['message_id'].nunique() #1,696: annotated is subset of all ra
 ##         will need for our analysis. Number of @'s, similarity score of final answers, 
 ##         participant accuracy 
 
-
+# STEP 2: POPULATE REPLY_TO FIELD
+delidata_messages = delidata_all[delidata_all['message_type'] == "CHAT_MESSAGE"]
+## a: convert timestamp to datetime 
+delidata_messages['timestamp2'] = pd.to_datetime(delidata_messages['timestamp'])
+## b: sort timestamp, by convo to get correct conversation ordering
+delidata_messages = delidata_messages.sort_values(['timestamp2'], ascending = True).groupby('convo_id')
+##c: create lag of message_id, rename it reply_to 
+delidata_messages = delidata_messages.apply(lag, column = 'message_id').sort_values(['convo_id', 'timestamp2'], ascending = True)
+delidata_messages.rename(columns={'lagged_message_id':'reply_to'}, inplace = True)
 
 ##############Corpus Construction Notes 
 # Notes about a corpus: 
