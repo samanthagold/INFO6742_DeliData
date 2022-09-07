@@ -83,7 +83,7 @@ delidata_utt['timestamp2'] = pd.to_datetime(delidata_utt['timestamp'])
 delidata_utt = delidata_utt.sort_values(['timestamp2'], ascending = True).groupby('conversation_id')
 ##c: create lag of message_id, rename it reply_to 
 delidata_utt = delidata_utt.apply(lag, column = 'message_id').sort_values(['conversation_id', 'timestamp2'], ascending = True)
-delidata_utt = delidata_utt.rename(columns={'lagged_message_id':'reply_to'}, inplace = True)
+delidata_utt.rename(columns={'lagged_message_id':'reply_to'}, inplace = True)
 deli_utt = delidata_utt[['message_id', 'speaker', 'timestamp', 'conversation_id', 'text', 'reply_to']].rename(columns={'message_id':'id'})
 deli_utt = deli_utt[['id', 'timestamp', 'text', 'speaker', 'reply_to', 'conversation_id']]
 
@@ -107,13 +107,22 @@ def parse_meta(val):
 
 delidata_user['meta.finalanswer']=delidata_user['content'].apply(parse_meta)
 delidata_user = delidata_user.sort_values(['timestamp'], ascending = True).groupby(['convo_id', 'user_id']).tail(1)
-user_df = delidata_user[['user_id', 'meta.finalanswer']]
-user_df = user_df.rename(columns={'user_id': 'id'})
+user_df = delidata_user[['user_id', 'meta.finalanswer']].rename(columns={'user_id':'id'})
+#user_df = user_df.rename(columns={'user_id': 'id'})
 
 convo_df = delidata_all.convo_id.drop_duplicates().to_frame()
-convo_df = convo_df.rename(columns={'convo_id':'id'})
+convo_df = convo_df.rename(columns={'convo_id':'id', })
 # Gathering all components of the corpus
 
 
 delidata_corpus = Corpus.from_pandas(utterances_df=deli_utt, speakers_df=user_df, conversations_df=convo_df)
+# speaker == '45e4352a71fe4160922f5bfdf3454d20' is not in user_df...why? Something wrong with user_df
+# not getting a corpus because there is a speaker in deli_utt that is not in user_df 
+# looking into what id is missing in user_df 
+deli_utt.query("speaker == '45e4352a71fe4160922f5bfdf3454d20'")
+# What happens if we remove this user from deli_utt? 
+deli_utt_test = deli_utt.query("speaker != '45e4352a71fe4160922f5bfdf3454d20'")
+
+delidata_corpus = Corpus.from_pandas(utterances_df = deli_utt_test, speakers_df=user_df, conversations_df=convo_df)
+# When removing speaker == '45e4352a71fe4160922f5bfdf3454d20', it works! This is the moderator I think? 
 
