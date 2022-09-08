@@ -15,6 +15,7 @@ Speakers in this dataset are participants in a group of 2-5 people for the Wason
 * id: the unique identifier for each speaker  
 
 Metadata for speakers: 
+
 * final_answer: the final card selection of each speaker. Found by identifying the latest Wason submission for each user by group. Example values: ‘5E’, ‘3A’, ‘69EB’. 
 * correct_answer: a flag equal to 1 if the speaker's final card selection was correct (i.e. the speaker selected a vowel AND an odd number) and equal to 0 if the speaker's final card selection was incorrect. 
 
