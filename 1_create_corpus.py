@@ -141,4 +141,5 @@ deli_utt_test = deli_utt.query("speaker != '45e4352a71fe4160922f5bfdf3454d20'")
 delidata_corpus = Corpus.from_pandas(utterances_df = deli_utt_test, speakers_df=user_df, conversations_df=convo_df)
 # When removing speaker == '45e4352a71fe4160922f5bfdf3454d20', it works! This is the moderator I think?
 
-  
+#%%
+delidata_corpus.dump(name="delidata_corpus", base_path="/Users/jennie/PycharmProjects/INFO6742_DeliData")
