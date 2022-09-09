@@ -43,8 +43,7 @@ Each chat room is considered a conversation. For each conversation, we provide t
 
 * num_participants: The number of participants in a chatroom. For a group of two, num_participants = 2. For a group of five, num_participants = 5. 
 * num_chats: The total number of chats that occurred in the chatroom. 
-* agreement_score: A ratio that measures the total number of answers that are the same divided by the number of group members. For example, if there were 5 people in a group and 2 people submitted the same card selections, the ratio would be 2/5 or 0.4. 
-* correct_score: A ratio that measures the total number of final card submissions that were correct (i.e. when card selection includes a vowel AND an odd number).For example, if there were 5 people in a group and 4 people submitted the correct card selection, the ratio would be 4/5 or 0.80. 
+* correct_ratio: A ratio that measures the total number of final card submissions that were correct (i.e. when card selection includes a vowel AND an odd number) at the group level.For example, if there were 5 people in a group and 4 people submitted the correct card selection, the ratio would be 4/5 or 0.80. 
 
 
 
@@ -64,9 +63,9 @@ Extract files to a local directory.
 For some quick stats:
 
 >>> corpus.print_summary_stats()
-Number of Speakers: 8096
-Number of Utterances: 61206
-Number of Conversations: 6682
+Number of Speakers: 1597
+Number of Utterances: 14021
+Number of Conversations: 500
 
 Additional note
 ---------------

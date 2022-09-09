@@ -1,24 +1,48 @@
 # GOAL: transform corpus into ConvoKit format 
-## Made a few assumptions: 
-  # we want to use all raw files from delidata (not just the Mturk files or just the pilot files)
 
 # Packages 
 from convokit import Corpus, download
 from convokit import Transformer
 import nltk
 import os
+import re
 import pandas as pd
 from tqdm import tqdm
 import ast
 from datetime import datetime
 
-# Setup 
-dir = "/Users/jennie/PycharmProjects/INFO6742_DeliData/data/delidata/" #Please change it to your directory
 
-# Helpers
+## Setup 
+dir = "/Users/sammygold/Downloads/delidata/" #Please change it to your directory
+outdir = "/Users/sammygold/Desktop/INFO6742/INFO6742_DeliData/"
+
+##  Helper Functions Used Throughout 
+# Define function that lags a column 
 def lag(df, column):
   df[f'lagged_{column}'] = df[column].shift(1)
   return(df)
+
+# Define function that extracts final card selections
+def parse_meta(val):
+  val = eval(val)
+  return ''.join([x['value'] for x in val if x['checked']])
+
+# Defining function that checks whether or not a final answer is correct 
+def correct_flag(val):
+  length = len(val)
+  numbers = [int(s) for s in re.sub("\\D", "", val) if s.isdigit()]
+  num_numbers = len(numbers)
+  letters = [s for s in re.sub("[^a-zA-Z]+", "", val) if s.isalpha()]
+  num_letters = len(letters)
+  if num_numbers == 1 and num_letters == 1 and length == 2:
+    odd = [x % 2 != 0 for x in numbers]
+    vowel = [x.upper() in ['A', 'E', 'I', 'O', 'U'] for x in letters]
+    if odd[0] and vowel[0]:
+      return True
+    else:
+      return False
+  else:
+    return False
 #%%
 #########################################
 ############### DATA PREP ###############
@@ -37,13 +61,6 @@ for filename in tqdm(filenames):
 delidata_all = pd.concat(delidata_all)
 delidata_all.columns = delidata_all.columns.str.lower()
 
-# Import annotated files with convo id 
-delidata_annotated = pd.read_table(f'{dir}annotated_data.tsv')
-delidata_annotated.columns = delidata_annotated.columns.str.lower()
-
-# Getting to know data sources
-delidata_all['message_id'].nunique()       #36,937
-delidata_annotated['message_id'].nunique() #1,696: annotated is subset of all raw data
 #%%
 #########################################
 ######### UTTERANCE GENERATION ##########
@@ -51,6 +68,7 @@ delidata_annotated['message_id'].nunique() #1,696: annotated is subset of all ra
 
 # Extract utterances
 deli_utt = delidata_all[delidata_all['message_type']=='CHAT_MESSAGE']
+deli_utt = deli_utt[deli_utt['user_name']!='Moderating Owl']
 print(len(deli_utt)) #14,035
 
 # Remove unnecassary signs and extract strings
@@ -72,74 +90,77 @@ deli_utt = deli_utt.drop(['content'],axis=1)
 deli_utt = deli_utt[['message_id', 'user_name', 'user_id','timestamp','convo_id','text']]\
   .rename(columns={'user_id':'speaker','convo_id':'conversation_id'})\
   .reset_index(drop=True)
-#%%
-# Additional cleaning steps I think we need to do before we can convert to corpus
-## Step 1: message in delidata_all['content'] column needs to be extracted in delidata_all
-## Step 2: to use Corpus.from_pandas() method, we need to figure out a way to populate
-##         the reply_to field.
-## Step 3: Verify that the group ID is the TSV filename.
-## Step N (? not sure if necessary for part c): Add in the metadata fields that we
-##         will need for our analysis. Number of @'s, similarity score of final answers,
-##         participant accuracy
+
 
 #########################################
 ######## POPULATE REPLY_TO FIELD ########
 #########################################
 
 # Convert timestamp to datetime
-delidata_utt = deli_utt
-delidata_utt['timestamp2'] = pd.to_datetime(delidata_utt['timestamp'])
+deli_utt['timestamp2'] = pd.to_datetime(deli_utt['timestamp'])
 
 # Sort timestamp, by convo to get correct conversation ordering
-delidata_utt = delidata_utt.sort_values(['timestamp2'], ascending = True).groupby('conversation_id')
+deli_utt = (
+    deli_utt
+    .sort_values(['timestamp2'], ascending = True)
+    .groupby('conversation_id')
+    .apply(lag, column = 'message_id')
+    .sort_values(['conversation_id', 'timestamp2'], ascending = True)
+    .rename(columns={'lagged_message_id':'reply_to', 'message_id': 'id'}, inplace = False)
 
-# Create lag of message_id, rename it reply_to
-delidata_utt = delidata_utt.apply(lag, column = 'message_id')\
-  .sort_values(['conversation_id', 'timestamp2'], ascending = True)
-delidata_utt.rename(columns={'lagged_message_id':'reply_to'}, inplace = True)
-deli_utt = delidata_utt[['message_id', 'speaker', 'timestamp', 'conversation_id', 'text', 'reply_to']]\
-  .rename(columns={'message_id':'id'})
+)
+
+#Subsetting and sorting relevant columns 
 deli_utt = deli_utt[['id', 'timestamp', 'text', 'speaker', 'reply_to', 'conversation_id']]
-
-#%%
-##############Corpus Construction Notes
-# Notes about a corpus:
-# Corpus is constructed of three parts: conversations, utterances, and speakers
-#   (1) Utterance data frame must contain: ID, timestamp, text, speaker,
-#       reply_to, conversation_id.
-#   (2) Conversation and speaker data only contain IDs
 
 #########################################
 ######### CREATING FINAL CORPUS #########
 #########################################
 
-# Creating final answer column
-def parse_meta(val):
-  val = eval(val)
-  return ''.join([x['value'] for x in val if x['checked']])
-
+# PART 1: User Level# 
+# Filtering to all wason submit actions to extract final submission and 
+# generating user-level data frame 
 delidata_user = delidata_all[delidata_all['message_type'] == "WASON_SUBMIT"]
+# Extracting final answer 
 delidata_user['meta.finalanswer']=delidata_user['content'].apply(parse_meta)
-delidata_user = delidata_user.sort_values(['timestamp'], ascending = True).groupby(['convo_id', 'user_id']).tail(1)
+# Grabbing latest submission 
+delidata_user = (
+    delidata_user
+    .sort_values(['timestamp'], ascending = True)
+    .groupby(['convo_id', 'user_id'])
+    .tail(1)
+)
 user_df = delidata_user[['user_id', 'meta.finalanswer']].rename(columns={'user_id':'id'})
-#user_df = user_df.rename(columns={'user_id': 'id'})
+# Checking correct-ness of final answer column 
+user_df['meta.correct_flag'] = user_df['meta.finalanswer'].apply(correct_flag)
 
-convo_df = delidata_all.convo_id.drop_duplicates().to_frame()
-convo_df = convo_df.rename(columns={'convo_id':'id'})
+# PART 2: Conversation Level#  
+convo_prep = (
+    deli_utt
+    .groupby('conversation_id')
+    .agg({'id': 'size', 'speaker': 'nunique'})
+    .reset_index()
+    .rename(columns={'index': 'conversation_id','id':'meta.num_chats', 'speaker':'meta.num_participants'})
+)
 
-# Gathering all components of the corpus
+convo_prep2 = pd.merge(deli_utt[['speaker', 'conversation_id']].drop_duplicates(), user_df, how = 'inner', left_on = 'speaker', right_on = 'id')
+convo_df = (
+    convo_prep2
+    .groupby('conversation_id')
+    .agg({'meta.correct_flag': 'sum', 'speaker':'nunique'})
+    .reset_index()
+    .rename(columns={'index': 'conversation_id'})
+    .merge(convo_prep, how = 'inner', on = 'conversation_id')
+    .rename(columns={'conversation_id':'id'})
+    
+)
+# Generating ratio 
+convo_df['meta.correct_ratio']=convo_df['meta.correct_flag']/convo_df['meta.num_participants']
+# Column clean up 
+convo_df = convo_df[['id', 'meta.num_chats', 'meta.num_participants', 'meta.correct_ratio']]
 
-# speaker == '45e4352a71fe4160922f5bfdf3454d20' is not in user_df...why? Something wrong with user_df
-# not getting a corpus because there is a speaker in deli_utt that is not in user_df
-# looking into what id is missing in user_df
-
-# Checking the moderator
-print(deli_utt.query("speaker == '45e4352a71fe4160922f5bfdf3454d20'").iloc[0])
-
-# What happens if we remove this user from deli_utt?
-deli_utt_test = deli_utt.query("speaker != '45e4352a71fe4160922f5bfdf3454d20'")
-delidata_corpus = Corpus.from_pandas(utterances_df = deli_utt_test, speakers_df=user_df, conversations_df=convo_df)
-# When removing speaker == '45e4352a71fe4160922f5bfdf3454d20', it works! This is the moderator I think?
+# Create final corpus
+delidata_corpus = Corpus.from_pandas(utterances_df = deli_utt, speakers_df = user_df, conversations_df = convo_df)
 
 # Save Corpus
-delidata_corpus.dump(name="delidata_corpus", base_path="/Users/jennie/PycharmProjects/INFO6742_DeliData")
+delidata_corpus.dump(name="delidata_corpus", base_path=outdir)
