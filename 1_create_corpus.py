@@ -15,6 +15,7 @@ from datetime import datetime
 ## Setup 
 dir = "/Users/sammygold/Downloads/delidata/" #Please change it to your directory
 outdir = "/Users/sammygold/Desktop/INFO6742/INFO6742_DeliData/"
+outdirv2 = "/Users/sammygold/Desktop/INFO6742/INFO6742_DeliData/"
 
 ##  Helper Functions Used Throughout 
 # Define function that lags a column 
@@ -130,7 +131,7 @@ delidata_user = (
     .groupby(['convo_id', 'user_id'])
     .tail(1)
 )
-user_df = delidata_user[['user_id', 'meta.finalanswer']].rename(columns={'user_id':'id'})
+user_df = delidata_user[['user_id', 'user_name', 'meta.finalanswer']].rename(columns={'user_id':'id', 'user_name':'meta.username'})
 # Checking correct-ness of final answer column 
 user_df['meta.correct_flag'] = user_df['meta.finalanswer'].apply(correct_flag)
 
@@ -163,4 +164,4 @@ convo_df = convo_df[['id', 'meta.num_chats', 'meta.num_participants', 'meta.corr
 delidata_corpus = Corpus.from_pandas(utterances_df = deli_utt, speakers_df = user_df, conversations_df = convo_df)
 
 # Save Corpus
-delidata_corpus.dump(name="delidata_corpus", base_path=outdir)
+delidata_corpus.dump(name="delidata_corpus", base_path=outdirv2)
