@@ -1,0 +1,1 @@
+{"utterances-index": {}, "speakers-index": {"username": ["<class 'str'>"], "finalanswer": ["<class 'str'>"], "correct_flag": ["<class 'bool'>"]}, "conversations-index": {"num_chats": ["<class 'float'>"], "num_participants": ["<class 'float'>"], "correct_ratio": ["<class 'float'>"]}, "overall-index": {}, "version": 1, "vectors": []}
